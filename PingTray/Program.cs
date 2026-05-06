@@ -9,7 +9,7 @@ static class Program
 {
     private static NotifyIcon? _trayIcon;
     private static readonly Ping _ping = new();
-    private static readonly string _target = "77.88.55.242";
+    private static AppSettings _settings = AppSettings.Load();
 
     [STAThread]
     static void Main()
@@ -25,32 +25,41 @@ static class Program
         {
             Icon = greenIcon,
             Visible = true,
-            Text = "Пинг 77.88.55.242"
+            Text = TrayTitle(_settings)
         };
 
-        // Контекстное меню для выхода
         var contextMenu = new ContextMenuStrip();
-        contextMenu.Items.Add("Выход", null, (s, e) => ExitApplication());
+        contextMenu.Items.Add("Настройки…", null, (_, _) => OpenSettings());
+        contextMenu.Items.Add(new ToolStripSeparator());
+        contextMenu.Items.Add("Выход", null, (_, _) => ExitApplication());
         _trayIcon.ContextMenuStrip = contextMenu;
 
-        // Запускаем бесконечный цикл пингов
         _ = PingLoopAsync(greenIcon, yellowIcon, redIcon);
 
         Application.Run();
+    }
+
+    private static string TrayTitle(AppSettings s) => $"Пинг {s.TargetHost}";
+
+    private static void OpenSettings()
+    {
+        using var form = new SettingsForm(_settings);
+        if (form.ShowDialog() == DialogResult.OK && form.ResultSettings != null)
+            _settings = form.ResultSettings;
     }
 
     private static async Task PingLoopAsync(Icon greenIcon, Icon yellowIcon, Icon redIcon)
     {
         while (true)
         {
+            var settings = _settings;
             try
             {
-                // Отправляем пинг, без using
-                PingReply reply = await _ping.SendPingAsync(_target, 3000);
+                PingReply reply = await _ping.SendPingAsync(settings.TargetHost, settings.PingTimeoutMs);
 
                 if (reply.Status == IPStatus.Success)
                 {
-                    if (reply.RoundtripTime <= 150)
+                    if (reply.RoundtripTime <= settings.YellowThresholdMs)
                         SetIcon(greenIcon, $"Пинг: {reply.RoundtripTime} мс");
                     else
                         SetIcon(yellowIcon, $"Медленно: {reply.RoundtripTime} мс");
@@ -65,8 +74,7 @@ static class Program
                 SetIcon(redIcon, "Нет сети / ошибка");
             }
 
-            // Небольшая пауза перед следующим пингом
-            await Task.Delay(500);
+            await Task.Delay(settings.PingIntervalMs);
         }
     }
 
