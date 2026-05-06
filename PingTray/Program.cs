@@ -66,7 +66,7 @@ static class Program
             }
 
             // Небольшая пауза перед следующим пингом
-            await Task.Delay(200);
+            await Task.Delay(500);
         }
     }
 
