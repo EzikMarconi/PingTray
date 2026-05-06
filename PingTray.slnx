@@ -1,3 +1,5 @@
 <Solution>
-  <Project Path="PingTray/PingTray.csproj" />
+  <Project Path="PingTray/PingTray.csproj">
+    <BuildType Project="Release" />
+  </Project>
 </Solution>
